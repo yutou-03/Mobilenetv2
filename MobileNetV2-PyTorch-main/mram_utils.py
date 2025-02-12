@@ -102,4 +102,4 @@ def send_to_mram(bit_slices, macro_row=0, macro_col=0, base_addr=0x0000):
                 host_data_addr=slice_data.ctypes.data_as(ct.POINTER(ct.c_int)),
                 data_size=slice_data.size
             )
-            
+    #test   

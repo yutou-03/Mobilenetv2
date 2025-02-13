@@ -86,20 +86,19 @@ def bit_slicing_weight(weight):
                 print(weight_filledin_bits[j][k][i])
                 
     print(weight_filledin_bits)
-    
-def send_to_mram(bit_slices, macro_row=0, macro_col=0, base_addr=0x0000):
+    return weight_filledin_bits
+
+def send_to_mram(weight_filledin_bits, base_addr=0x0000):
     #将位切片发送到MRAM
     #需要调整逻辑
-    for ip in range(4):  # 每个宏包含4个IP
-        for b in range(bit_slices.shape[0]):
-            slice_data = bit_slices[b, :, ip*8:(ip+1)*8]
-            Send(
-                "/dev/xdma0_h2c_0",
-                macro_row=macro_row,
-                macro_col=macro_col,
-                ip_addr=ip,
-                mram_addr=base_addr + b*16,
-                host_data_addr=slice_data.ctypes.data_as(ct.POINTER(ct.c_int)),
-                data_size=slice_data.size
-            )
+    '''
+    Send("/dev/xdma0_h2c_0", 0, 0, 0, 0, (int *)(weight_filledin_bits[0]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 0, 1, 0, (int *)(weight_filledin_bits[1]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 0, 2, 0, (int *)(weight_filledin_bits[2]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 0, 3, 0, (int *)(weight_filledin_bits[3]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 1, 0, 0, (int *)(weight_filledin_bits[4]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 1, 1, 0, (int *)(weight_filledin_bits[5]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 1, 2, 0, (int *)(weight_filledin_bits[6]), 8 * 16)
+    Send("/dev/xdma0_h2c_0", 0, 1, 3, 0, (int *)(weight_filledin_bits[7]), 8 * 16)
+    '''
     #test   

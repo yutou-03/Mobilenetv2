@@ -26,6 +26,8 @@ import imgproc
 import model
 from utils import load_state_dict
 
+from mram_utils import bit_slicing_vector,bit_slicing_weight,send_to_mram
+
 model_names = sorted(
     name for name in model.__dict__ if name.islower() and not name.startswith("__") and callable(model.__dict__[name]))
 
@@ -113,7 +115,22 @@ def main():
     # Load model weights
     mobilenet_v2_model, _, _, _, _, _ = load_state_dict(mobilenet_v2_model, args.model_weights_path)
     print(f"Load `{args.model_arch_name}` model weights `{os.path.abspath(args.model_weights_path)}` successfully.")
-
+    
+    # 替换模型中的全连接层
+    mobilenet_v2_model.classifier[1] = MRAMLinear(
+        in_features=mobilenet_v2_model.classifier[1].in_features,
+        out_features=mobilenet_v2_model.classifier[1].out_features,
+        bit_width=8
+    )
+    print("Replaced the fully connected layer with MRAMLinear.")
+    
+	# 步骤2：处理全连接层权重并发送到MRAM
+    fc_weight = mobilenet_v2_model.classifier[1].weight.data.cpu().numpy()  # [num_classes, 1280]
+    weight_filledin_bits = bit_slicing_weight(fc_weight)
+    #注意先init mram
+    send_to_mram(weight_filledin_bits,base_addr=0x0000)
+ 
+ 
     # Start the verification mode of the model.
     mobilenet_v2_model.eval()
 

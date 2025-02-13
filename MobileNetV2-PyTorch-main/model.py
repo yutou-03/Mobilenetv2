@@ -19,7 +19,7 @@ torch.set_printoptions(threshold=np.inf)
 from torch import Tensor
 from torch import nn
 from torchvision.ops.misc import Conv2dNormActivation
-
+from mram_utils import bit_slicing_vector,bit_slicing_weight,send_to_mram
 
 __all__ = [
     "MobileNetV2",
@@ -38,6 +38,37 @@ mobilenet_v2_inverted_residual_cfg: List[list[int, int, int, int]] = [
     [6, 160, 3, 2],
     [6, 320, 1, 1],
 ]
+
+class MRAMLinear(nn.Module):
+    def __init__(self, in_features, out_features, bit_width=8):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.bit_width = bit_width
+        
+        # MRAM参数配置
+        self.mram_addr = 0x0000  # 权重存储起始地址
+        self.macro_row = 0
+        self.macro_col = 0
+
+    def forward(self, x: Tensor) -> Tensor:
+        # 输入x形状: [batch_size, in_features]
+        batch_size = x.shape[0]
+        
+        # 将输入填充到512位，并转换为位切片
+        x_bits = bit_slicing_vector(x) # [bit_width, 16]
+        
+        # 通过Store发送输入到设备RAM
+        #Load("/dev/xdma0_h2c_0", device_ram_addr, cmd, 3)
+        
+        # 调用Vmmul计算
+        result = np.zeros((batch_size, 4), dtype=np.int32)  # 4个IP的结果
+        res_addr = 0x1000
+        #Vmmul("/dev/xdma0_h2c_0", (unsigned int *)vector_filledin_bits, 5 * 16, 5, 1, 0, 1, 0x0008, 5, res_addr)
+        
+        # 合并结果并转换为张量
+        output = torch.from_numpy(result[:, :self.out_features]).float()
+        return output
 
 
 class MobileNetV2(nn.Module):
@@ -89,7 +120,8 @@ class MobileNetV2(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Dropout(dropout, True),
-            nn.Linear(classifier_channels, num_classes),
+            #nn.Linear(classifier_channels, num_classes),
+            MRAMLinear(classifier_channels, num_classes, bit_width=8),  # 替换为自定义的MRAM全连接层
         )
 
         # Initialize neural network weights
@@ -118,8 +150,8 @@ class MobileNetV2(nn.Module):
             elif isinstance(module, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.ones_(module.weight)
                 nn.init.zeros_(module.bias)
-            elif isinstance(module, nn.Linear):
-                nn.init.normal_(module.weight, 0, 0.01)
+            elif isinstance(module, MRAMLinear):  # 如果MRAMLinear需要特殊初始化
+                nn.init.normal_(module.weight, 0, 0.01)  # 示例初始化
                 nn.init.zeros_(module.bias)
 
 

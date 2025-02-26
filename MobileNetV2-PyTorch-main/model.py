@@ -56,7 +56,7 @@ class MRAMLinear(nn.Module):
         batch_size = x.shape[0]
         
         # 将输入填充到512位，并转换为位切片
-        x_bits = bit_slicing_vector(x) # [bit_width, 16]
+        x_bits = bit_slicing_vector(x)
         
         # 通过Store发送输入到设备RAM
         #Load("/dev/xdma0_h2c_0", device_ram_addr, cmd, 3)
